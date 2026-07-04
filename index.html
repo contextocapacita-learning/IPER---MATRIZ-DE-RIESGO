@@ -1,0 +1,839 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sistema de Gestión de Riesgos IPER - ISO 45001 / AG 229-2014</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div id="toast" class="toast">¡Registro incorporado con éxito!</div>
+
+    <div class="container">
+      <!-- ===================== PANTALLA DE ACCESO ===================== -->
+      <div id="auth-screen" class="auth-wrap hidden">
+        <div class="auth-card">
+          <h3 style="text-align: center">Matriz IPER — Acceso</h3>
+          <p
+            style="
+              font-size: 0.8rem;
+              color: #64748b;
+              text-align: center;
+              margin-top: -8px;
+            "
+          >
+            Tus datos se guardan en la nube y puedes abrirlos desde cualquier
+            dispositivo iniciando sesión con tu correo.
+          </p>
+          <div class="auth-tabs">
+            <div
+              class="auth-tab active"
+              id="tab-login"
+              onclick="cambiarTabAuth('login')"
+            >
+              Iniciar sesión
+            </div>
+            <div
+              class="auth-tab"
+              id="tab-register"
+              onclick="cambiarTabAuth('register')"
+            >
+              Registrarme
+            </div>
+          </div>
+          <div>
+            <label for="auth-email">Correo electrónico</label>
+            <input
+              type="email"
+              id="auth-email"
+              placeholder="estudiante@correo.com"
+            />
+          </div>
+          <div style="margin-top: 10px">
+            <label for="auth-pass">Contraseña</label>
+            <input
+              type="password"
+              id="auth-pass"
+              placeholder="Mínimo 6 caracteres"
+            />
+          </div>
+          <button
+            class="btn-add"
+            style="width: 100%; margin-top: 14px"
+            id="auth-submit-btn"
+            onclick="submitAuth()"
+          >
+            Iniciar sesión
+          </button>
+          <div class="auth-error" id="auth-error"></div>
+          <div class="auth-links">
+            <a
+              href="#"
+              onclick="
+                usarModoLocalManual();
+                return false;
+              "
+              >Continuar sin conexión (modo local en este dispositivo)</a
+            >
+          </div>
+        </div>
+      </div>
+
+      <!-- ===================== APP PRINCIPAL ===================== -->
+      <div id="app-container" class="hidden">
+        <div id="banner-local" class="banner banner-local hidden">
+          ⚠️ <strong>Modo local:</strong> tus datos se están guardando solo en
+          este navegador/dispositivo. Si abres este enlace en otro celular o
+          computadora, no los verás. Usa "Exportar respaldo (.json)" antes de
+          cambiar de dispositivo, o configura Firebase para guardado en la nube
+          (ver instrucciones al final de esta conversación).
+        </div>
+        <div id="banner-cloud" class="banner banner-cloud hidden">
+          ☁️ Sesión activa en la nube. Tus datos se guardan automáticamente y
+          puedes verlos desde cualquier dispositivo iniciando sesión con el
+          mismo correo.
+        </div>
+
+        <div class="topbar">
+          <div class="topbar-user" id="topbar-user"></div>
+          <div class="topbar-actions">
+            <button class="btn-secondary" onclick="exportarJSON()">
+              ⬇️ Exportar respaldo (.json)
+            </button>
+            <button
+              class="btn-secondary"
+              onclick="document.getElementById('input-importar').click()"
+            >
+              ⬆️ Importar respaldo (.json)
+            </button>
+            <input
+              type="file"
+              id="input-importar"
+              accept="application/json"
+              class="hidden"
+              onchange="importarJSON(event)"
+            />
+            <button
+              class="btn-logout hidden"
+              id="btn-logout"
+              onclick="cerrarSesion()"
+            >
+              Cerrar sesión
+            </button>
+          </div>
+        </div>
+
+        <div class="no-print">
+          <h3>
+            Panel de Ingeniería de Riesgos e IPER Avanzada (ISO 45001 / AG
+            229-2014)
+          </h3>
+
+          <div class="grid-forms">
+            <div class="section-title">
+              0. Datos del Centro de Trabajo (aparecen en el encabezado del
+              reporte)
+            </div>
+            <div>
+              <label for="ctx-empresa">Empresa / Centro de Trabajo</label>
+              <input
+                type="text"
+                id="ctx-empresa"
+                oninput="actualizarContexto()"
+              />
+            </div>
+            <div>
+              <label for="ctx-nit">NIT / Código Patronal</label>
+              <input type="text" id="ctx-nit" oninput="actualizarContexto()" />
+            </div>
+            <div>
+              <label for="ctx-trabajadores">Número de Trabajadores</label>
+              <input
+                type="number"
+                min="0"
+                id="ctx-trabajadores"
+                oninput="actualizarContexto()"
+              />
+            </div>
+            <div>
+              <label for="ctx-monitor">Monitor SSO / Responsable</label>
+              <input
+                type="text"
+                id="ctx-monitor"
+                oninput="actualizarContexto()"
+              />
+            </div>
+            <div>
+              <label for="ctx-comite">Código Comité Bipartito (opcional)</label>
+              <input
+                type="text"
+                id="ctx-comite"
+                oninput="actualizarContexto()"
+              />
+            </div>
+            <div>
+              <label for="ctx-fecha">Fecha de Elaboración</label>
+              <input
+                type="date"
+                id="ctx-fecha"
+                oninput="actualizarContexto()"
+              />
+            </div>
+          </div>
+
+          <div class="grid-forms">
+            <div class="section-title">
+              1. Contexto y Clasificación del Peligro
+            </div>
+            <div>
+              <label for="area">Área / Puesto Auditado</label>
+              <span class="hint"
+                >Lugar físico o puesto donde se realizó la inspección</span
+              >
+              <input
+                type="text"
+                id="area"
+                placeholder="Ej. Taller de Soldadura"
+              />
+            </div>
+            <div>
+              <label for="tipo_peligro">Tipo de Peligro (según origen)</label>
+              <span class="hint">Clasificación general del peligro</span>
+              <select id="tipo_peligro">
+                <option value="Físico">Físico</option>
+                <option value="Químico">Químico</option>
+                <option value="Biológico">Biológico</option>
+                <option value="Ergonómico">Ergonómico</option>
+                <option value="Psicosocial">Psicosocial</option>
+                <option value="Mecánico/Seguridad">Mecánico / Seguridad</option>
+                <option value="Eléctrico">Eléctrico</option>
+                <option value="Locativo">
+                  Locativo (in situ: pisos, estructura, orden y limpieza)
+                </option>
+                <option value="Ambiental">Ambiental</option>
+                <option value="Fenómenos Naturales">Fenómenos Naturales</option>
+                <option value="Público/Social">Público / Social</option>
+              </select>
+            </div>
+            <div>
+              <label for="peligro">Peligro Identificado</label>
+              <span class="hint">La fuente u origen capaz de causar daño</span>
+              <input
+                type="text"
+                id="peligro"
+                placeholder="Ej. Objetos almacenados en estantería alta"
+              />
+            </div>
+            <div>
+              <label for="fuente_peligro">Fuente del Peligro (opcional)</label>
+              <span class="hint">La causa raíz específica de ese peligro</span>
+              <input
+                type="text"
+                id="fuente_peligro"
+                placeholder="Ej. Estantería sin anclaje, sobrecarga de peso"
+              />
+            </div>
+            <div>
+              <label for="evento_riesgo">Riesgo (evento posible)</label>
+              <span class="hint">Qué podría suceder concretamente</span>
+              <input
+                type="text"
+                id="evento_riesgo"
+                placeholder="Ej. Caída de objetos sobre el trabajador"
+              />
+            </div>
+            <div>
+              <label for="riesgo">Consecuencia / Daño Potencial</label>
+              <span class="hint"
+                >El daño resultante si el evento ocurre (el Nivel de Riesgo se
+                calcula abajo)</span
+              >
+              <input
+                type="text"
+                id="riesgo"
+                placeholder="Ej. Heridas en la cabeza, fracturas"
+              />
+            </div>
+            <div>
+              <label for="identificador">Identificado por</label>
+              <span class="hint"
+                >Trabajador o miembro del comité que reportó el hallazgo</span
+              >
+              <input
+                type="text"
+                id="identificador"
+                placeholder="Ej. Juan Pérez, Comité Bipartito"
+              />
+            </div>
+            <div>
+              <label for="referencia_legal">Referencia legal (opcional)</label>
+              <span class="hint"
+                >Artículo del AG 229-2014 u otra norma aplicable</span
+              >
+              <input
+                type="text"
+                id="referencia_legal"
+                placeholder="Ej. Art. 197, AG 229-2014"
+              />
+            </div>
+            <div>
+              <label for="controles_existentes"
+                >Controles Existentes (opcional)</label
+              >
+              <span class="hint"
+                >Qué ya está implementado hoy, aunque sea insuficiente. No lo
+                omitas: es evidencia y da contexto a la evaluación actual</span
+              >
+              <input
+                type="text"
+                id="controles_existentes"
+                placeholder="Ej. Extractor portátil que no cubre toda el área"
+              />
+            </div>
+          </div>
+
+          <div class="dashboard-layout">
+            <div style="display: flex; flex-direction: column; gap: 15px">
+              <div class="grid-forms" style="margin-bottom: 0">
+                <div class="section-title">
+                  2. Evaluación del Nivel de Riesgo Actual (Con Controles
+                  Existentes)
+                </div>
+                <div
+                  style="
+                    grid-column: 1 / -1;
+                    font-size: 0.78rem;
+                    color: #64748b;
+                    margin-top: -8px;
+                    margin-bottom: 4px;
+                  "
+                >
+                  Evalúa Probabilidad y Severidad considerando solo lo que ya
+                  existe hoy (aunque sea insuficiente), no un escenario ideal.
+                </div>
+                <div>
+                  <label for="p_inh">Probabilidad Actual</label>
+                  <select id="p_inh" onchange="calcularRiesgos()">
+                    <option value="1">1 - Raro</option>
+                    <option value="2">2 - Improbable</option>
+                    <option value="3">3 - Posible</option>
+                    <option value="4">4 - Probable</option>
+                    <option value="5">5 - Casi Seguro</option>
+                  </select>
+                </div>
+                <div>
+                  <label for="s_inh">Severidad Actual</label>
+                  <select id="s_inh" onchange="calcularRiesgos()">
+                    <option value="1">1 - Insignificante</option>
+                    <option value="2">2 - Menor</option>
+                    <option value="3">3 - Moderado</option>
+                    <option value="4">4 - Mayor</option>
+                    <option value="5">5 - Catastrófico</option>
+                  </select>
+                </div>
+                <div class="risk-calc-box">
+                  <div>
+                    <label>Nivel de Riesgo Actual</label>
+                    <div id="eval_inh" class="eval-display">-</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="grid-forms" style="margin-bottom: 0">
+                <div class="section-title">
+                  3. Jerarquía de Controles Propuestos (ISO 45001, 8.1.2)
+                </div>
+                <div>
+                  <label for="control_elim">1: Eliminación</label>
+                  <span class="hint">Quitar el peligro por completo</span>
+                  <input
+                    type="text"
+                    id="control_elim"
+                    placeholder="Ej. Retirar la máquina obsoleta del área"
+                  />
+                </div>
+                <div>
+                  <label for="control_sust">2: Sustitución</label>
+                  <span class="hint">Cambiar por algo menos peligroso</span>
+                  <input
+                    type="text"
+                    id="control_sust"
+                    placeholder="Ej. Sustituir solvente tóxico por uno de base acuosa"
+                  />
+                </div>
+                <div>
+                  <label for="control_ing">3: Controles de Ingeniería</label>
+                  <span class="hint"
+                    >Aislar el peligro con una barrera física o técnica</span
+                  >
+                  <input
+                    type="text"
+                    id="control_ing"
+                    placeholder="Ej. Sistema de extracción localizada fija"
+                  />
+                </div>
+                <div>
+                  <label for="control_adm">4: Controles Administrativos</label>
+                  <span class="hint"
+                    >Procedimientos, capacitación, rotación de personal,
+                    señalización, permisos de trabajo</span
+                  >
+                  <input
+                    type="text"
+                    id="control_adm"
+                    placeholder="Ej. Procedimiento seguro de trabajo, señalización de área restringida"
+                  />
+                </div>
+                <div>
+                  <label for="control_epp"
+                    >5: Equipo de Protección Personal (EPP)</label
+                  >
+                  <span class="hint"
+                    >Última barrera, cuando lo anterior no elimina el riesgo por
+                    completo</span
+                  >
+                  <input
+                    type="text"
+                    id="control_epp"
+                    placeholder="Ej. Respirador con filtro para humos metálicos"
+                  />
+                </div>
+                <div>
+                  <label>Responsable y Fecha Compromiso</label>
+                  <span class="hint"
+                    >Quién y para cuándo se compromete a implementar los
+                    controles</span
+                  >
+                  <div class="field-pair">
+                    <div>
+                      <input
+                        type="text"
+                        id="responsable_control"
+                        placeholder="Ej. Jefe de mantenimiento"
+                      />
+                    </div>
+                    <div><input type="date" id="fecha_compromiso" /></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="grid-forms" style="margin-bottom: 0">
+                <div class="section-title">
+                  4. Evaluación del Nivel de Riesgo Residual (Proyectado)
+                </div>
+                <div
+                  style="
+                    grid-column: 1 / -1;
+                    font-size: 0.78rem;
+                    color: #64748b;
+                    margin-top: -8px;
+                    margin-bottom: 4px;
+                  "
+                >
+                  Proyección: si los controles propuestos de la Sección 3 se
+                  implementan correctamente, ¿en qué quedaría el riesgo? (se
+                  verifica después, no es una medición actual).
+                </div>
+                <div>
+                  <label for="p_res">Probabilidad Residual</label>
+                  <select id="p_res" onchange="calcularRiesgos()">
+                    <option value="1">1 - Raro</option>
+                    <option value="2">2 - Improbable</option>
+                    <option value="3">3 - Posible</option>
+                    <option value="4">4 - Probable</option>
+                    <option value="5">5 - Casi Seguro</option>
+                  </select>
+                </div>
+                <div>
+                  <label for="s_res">Severidad Residual</label>
+                  <select id="s_res" onchange="calcularRiesgos()">
+                    <option value="1">1 - Insignificante</option>
+                    <option value="2">2 - Menor</option>
+                    <option value="3">3 - Moderado</option>
+                    <option value="4">4 - Mayor</option>
+                    <option value="5">5 - Catastrófico</option>
+                  </select>
+                </div>
+                <div class="risk-calc-box">
+                  <div>
+                    <label>Nivel de Riesgo Residual</label>
+                    <div id="eval_res" class="eval-display">-</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="heatmap-container">
+              <label
+                style="
+                  text-align: center;
+                  margin-bottom: 5px;
+                  font-weight: bold;
+                "
+                >Ubicación de Riesgos Residuales</label
+              >
+              <table class="heatmap-table">
+                <tr>
+                  <th style="border: none; background: none; width: 25px">
+                    S &uarr;
+                  </th>
+                  <th>1</th>
+                  <th>2</th>
+                  <th>3</th>
+                  <th>4</th>
+                  <th>5</th>
+                </tr>
+                <tr>
+                  <th>5</th>
+                  <td
+                    class="heatmap-cell"
+                    id="cell-1-5"
+                    style="background: #eab308"
+                  >
+                    5
+                  </td>
+                  <td
+                    class="heatmap-cell"
+                    id="cell-2-5"
+                    style="background: #f97316"
+                  >
+                    10
+                  </td>
+                  <td
+                    class="heatmap-cell"
+                    id="cell-3-5"
+                    style="background: #ef4444"
+                  >
+                    15
+                  </td>
+                  <td
+                    class="heatmap-cell"
+                    id="cell-4-5"
+                    style="background: #ef4444"
+                  >
+                    20
+                  </td>
+                  <td
+                    class="heatmap-cell"
+                    id="cell-5-5"
+                    style="background: #ef4444"
+                  >
+                    25
+                  </td>
+                </tr>
+                <tr>
+                  <th>4</th>
+                  <td
+                    class="heatmap-cell"
+                    id="cell-1-4"
+                    style="background: #f97316"
+                  >
+                    4
+                  </td>
+                  <td
+                    class="heatmap-cell"
+                    id="cell-2-4"
+                    style="background: #f97316"
+                  >
+                    8
+                  </td>
+                  <td
+                    class="heatmap-cell"
+                    id="cell-3-4"
+                    style="background: #f97316"
+                  >
+                    12
+                  </td>
+                  <td
+                    class="heatmap-cell"
+                    id="cell-4-4"
+                    style="background: #ef4444"
+                  >
+                    16
+                  </td>
+                  <td
+                    class="heatmap-cell"
+                    id="cell-5-4"
+                    style="background: #ef4444"
+                  >
+                    20
+                  </td>
+                </tr>
+                <tr>
+                  <th>3</th>
+                  <td
+                    class="heatmap-cell"
+                    id="cell-1-3"
+                    style="background: #eab308"
+                  >
+                    3
+                  </td>
+                  <td
+                    class="heatmap-cell"
+                    id="cell-2-3"
+                    style="background: #eab308"
+                  >
+                    6
+                  </td>
+                  <td
+                    class="heatmap-cell"
+                    id="cell-3-3"
+                    style="background: #f97316"
+                  >
+                    9
+                  </td>
+                  <td
+                    class="heatmap-cell"
+                    id="cell-4-3"
+                    style="background: #f97316"
+                  >
+                    12
+                  </td>
+                  <td
+                    class="heatmap-cell"
+                    id="cell-5-3"
+                    style="background: #ef4444"
+                  >
+                    15
+                  </td>
+                </tr>
+                <tr>
+                  <th>2</th>
+                  <td
+                    class="heatmap-cell"
+                    id="cell-1-2"
+                    style="background: #22c55e"
+                  >
+                    2
+                  </td>
+                  <td
+                    class="heatmap-cell"
+                    id="cell-2-2"
+                    style="background: #eab308"
+                  >
+                    4
+                  </td>
+                  <td
+                    class="heatmap-cell"
+                    id="cell-3-2"
+                    style="background: #eab308"
+                  >
+                    6
+                  </td>
+                  <td
+                    class="heatmap-cell"
+                    id="cell-4-2"
+                    style="background: #f97316"
+                  >
+                    8
+                  </td>
+                  <td
+                    class="heatmap-cell"
+                    id="cell-5-2"
+                    style="background: #f97316"
+                  >
+                    10
+                  </td>
+                </tr>
+                <tr>
+                  <th>1</th>
+                  <td
+                    class="heatmap-cell"
+                    id="cell-1-1"
+                    style="background: #22c55e"
+                  >
+                    1
+                  </td>
+                  <td
+                    class="heatmap-cell"
+                    id="cell-2-1"
+                    style="background: #22c55e"
+                  >
+                    2
+                  </td>
+                  <td
+                    class="heatmap-cell"
+                    id="cell-3-1"
+                    style="background: #22c55e"
+                  >
+                    3
+                  </td>
+                  <td
+                    class="heatmap-cell"
+                    id="cell-4-1"
+                    style="background: #22c55e"
+                  >
+                    4
+                  </td>
+                  <td
+                    class="heatmap-cell"
+                    id="cell-5-1"
+                    style="background: #eab308"
+                  >
+                    5
+                  </td>
+                </tr>
+                <tr>
+                  <th style="border: none; background: none"></th>
+                  <th colspan="5">P &rarr;</th>
+                </tr>
+              </table>
+            </div>
+          </div>
+
+          <div class="btn-group">
+            <button class="btn-add" id="btn-submit" onclick="guardarRegistro()">
+              Registrar e Incorporar
+            </button>
+            <button
+              class="btn-cancel hidden"
+              id="btn-cancel-edit"
+              onclick="cancelarEdicion()"
+            >
+              Cancelar edición
+            </button>
+            <button class="btn-pdf" id="btn-pdf" onclick="exportarReportePDF()">
+              Exportar PDF Profesional
+            </button>
+            <button class="btn-clear" onclick="limpiarTodo()">
+              Borrar Todo
+            </button>
+          </div>
+        </div>
+
+        <div class="no-print" style="padding-top: 15px; padding-bottom: 15px">
+          <div class="filter-bar">
+            <div>
+              <label for="filtro-area">Buscar por área / peligro</label>
+              <input
+                type="text"
+                id="filtro-area"
+                oninput="actualizarVista()"
+                placeholder="Escriba para filtrar..."
+              />
+            </div>
+            <div>
+              <label for="filtro-tipo">Tipo de peligro</label>
+              <select id="filtro-tipo" onchange="actualizarVista()">
+                <option value="">Todos</option>
+                <option value="Físico">Físico</option>
+                <option value="Químico">Químico</option>
+                <option value="Biológico">Biológico</option>
+                <option value="Ergonómico">Ergonómico</option>
+                <option value="Psicosocial">Psicosocial</option>
+                <option value="Mecánico/Seguridad">Mecánico / Seguridad</option>
+                <option value="Eléctrico">Eléctrico</option>
+                <option value="Locativo">Locativo</option>
+                <option value="Ambiental">Ambiental</option>
+                <option value="Fenómenos Naturales">Fenómenos Naturales</option>
+                <option value="Público/Social">Público / Social</option>
+              </select>
+            </div>
+            <div>
+              <label for="filtro-nivel">Nivel de riesgo residual</label>
+              <select id="filtro-nivel" onchange="actualizarVista()">
+                <option value="">Todos</option>
+                <option value="acep">Aceptable</option>
+                <option value="mod">Moderado</option>
+                <option value="alto">Alto</option>
+                <option value="crit">Crítico</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div id="reporte-pdf">
+          <div class="report-header">
+            <div class="report-title">
+              <h1>
+                MATRIZ DE IDENTIFICACIÓN DE PELIGROS Y EVALUACIÓN DE RIESGOS
+                (IPER)
+              </h1>
+              <p>
+                Sistema de Gestión de Seguridad y Salud Ocupacional (ISO 45001 /
+                AG 229-2014)
+              </p>
+              <p class="report-empresa">
+                <strong id="rep-empresa">—</strong> &nbsp;|&nbsp; NIT/Patronal:
+                <span id="rep-nit">—</span> &nbsp;|&nbsp; Trabajadores:
+                <span id="rep-trab">—</span><br />
+                Monitor SSO: <span id="rep-monitor">—</span> &nbsp;|&nbsp;
+                Comité Bipartito: <span id="rep-comite">—</span>
+              </p>
+            </div>
+            <div
+              style="
+                font-size: 0.8rem;
+                text-align: right;
+                color: var(--navy-light);
+              "
+            >
+              <strong>Código:</strong> SGS-IPER-002<br />
+              <strong>Fecha Emisión:</strong> <span id="fecha-actual"></span
+              ><br />
+              <strong>Estatus:</strong> <span id="rep-estatus">—</span>
+            </div>
+          </div>
+
+          <div class="kpi-container">
+            <div class="kpi-card" style="background: var(--color-aceptable)">
+              Aceptable: <span id="count-acep">0</span>
+            </div>
+            <div
+              class="kpi-card"
+              style="background: var(--color-moderado); color: black"
+            >
+              Moderado: <span id="count-mod">0</span>
+            </div>
+            <div class="kpi-card" style="background: var(--color-alto)">
+              Alto: <span id="count-alto">0</span>
+            </div>
+            <div class="kpi-card" style="background: var(--color-critico)">
+              Crítico: <span id="count-crit">0</span>
+            </div>
+          </div>
+
+          <div class="table-scroll-wrapper">
+            <table class="matriz-table">
+              <thead>
+                <tr>
+                  <th style="width: 11%">Área / Puesto</th>
+                  <th style="width: 9%">Clasificación</th>
+                  <th style="width: 12%">Peligro Identificado</th>
+                  <th style="width: 12%">Riesgo y Consecuencia</th>
+                  <th style="width: 3%; text-align: center">P</th>
+                  <th style="width: 3%; text-align: center">S</th>
+                  <th style="width: 11%; text-align: center">
+                    Nivel Riesgo Actual
+                  </th>
+                  <!-- Bajó de 18% a 16% para cederle espacio a los botones -->
+                  <th style="width: 16%">Medidas de Control</th>
+                  <th style="width: 3%; text-align: center">P</th>
+                  <th style="width: 3%; text-align: center">S</th>
+                  <th style="width: 11%; text-align: center">
+                    Nivel Riesgo Res.
+                  </th>
+                  <!-- Subió de 4% a 6% para que el lápiz y la X quepan perfectamente juntos -->
+                  <th
+                    class="no-print"
+                    data-html2canvas-ignore
+                    style="width: 6%; text-align: center"
+                  >
+                    Acción
+                  </th>
+                </tr>
+              </thead>
+              <tbody id="tabla-cuerpo"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
